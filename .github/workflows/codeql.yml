@@ -58,6 +58,12 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
+          # NeoGradle decompiles vanilla Minecraft into each NeoForge project's build/
+          # directory (neoForm step). build-mode:manual traces the whole build, so that
+          # decompiled Mojang source gets extracted too. Exclude it: alerts there are
+          # against vanilla code, not this repo, and clutter results with noise.
+          paths-ignore:
+            - '**/build/**'
 
       - name: Build (${{ matrix.name }})
         run: ${{ matrix.build }}
