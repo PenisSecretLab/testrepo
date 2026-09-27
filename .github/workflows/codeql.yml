@@ -58,12 +58,52 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
-          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build (${{ matrix.name }})
         run: ${{ matrix.build }}
 
+      # build-mode:manual extracts every file the traced build compiles, including
+      # NeoGradle's own neoForm step decompiling vanilla Minecraft into build/. The
+      # config-file paths-ignore option does NOT filter compiled-language results that
+      # come from build tracing (verified: identical results_count with and without
+      # it) — so filter the SARIF by hand before upload instead of relying on it.
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
+          category: "/language:java-kotlin-${{ matrix.name }}"
+          output: ../results
+          upload: never
+
+      - name: Drop NeoForm-decompiled vanilla source from SARIF
+        run: |
+          python3 - <<'PY'
+          import json, glob
+
+          def touches_build(result):
+              locs = result.get("locations", []) + result.get("relatedLocations", [])
+              for loc in locs:
+                  uri = loc.get("physicalLocation", {}).get("artifactLocation", {}).get("uri", "")
+                  if "/build/" in uri or uri.startswith("build/"):
+                      return True
+              for flow in result.get("codeFlows", []):
+                  for thread in flow.get("threadFlows", []):
+                      for step in thread.get("locations", []):
+                          uri = step.get("location", {}).get("physicalLocation", {}).get("artifactLocation", {}).get("uri", "")
+                          if "/build/" in uri or uri.startswith("build/"):
+                              return True
+              return False
+
+          for path in glob.glob("../results/*.sarif"):
+              with open(path) as f:
+                  sarif = json.load(f)
+              for run in sarif.get("runs", []):
+                  run["results"] = [r for r in run.get("results", []) if not touches_build(r)]
+              with open(path, "w") as f:
+                  json.dump(sarif, f)
+          PY
+
+      - name: Upload filtered SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ../results
           category: "/language:java-kotlin-${{ matrix.name }}"
