@@ -62,7 +62,7 @@
 - **Fabric Loader** 0.16.0+ (0.18.5+ for MC 26.1.x)
 - **Fabric API** (matching your Minecraft version)
 
-**NeoForge** (1.21.1, 1.21.11, 26.2 — see [Known Issues](#known-issues) for the one feature gap):
+**NeoForge** (1.21.1, 1.21.11, 26.2 — see [Known Issues](#known-issues) for the feature gaps):
 - **NeoForge** matching your Minecraft version — no other dependency needed
 
 ### Installation
@@ -167,6 +167,7 @@ The `/opsec` command is **off by default** (enable it in Misc → Debug Command)
 ## Known Issues
 
 - **NeoForge builds don't offer Mod Whitelist's AUTO mode** — NeoForge has no equivalent to Fabric's global network-channel registry, so there's no way to scan installed mods for "has a server channel" the way AUTO mode does on Fabric. Use **BLOCK ALL** or **CUSTOM** instead; every other protection feature works the same as Fabric. NeoForge builds are also newer and less battle-tested overall — please report issues.
+- **NeoForge builds have no [Known-Pack Filtering](#known-pack-filtering)** — the underlying detection hook is Fabric-API-only, so this protection is silently inactive on all three NeoForge ports. Tracked in [#8](https://github.com/SU4G3/OpSec-Enhanced/issues/8).
 - **HUD Indicator on 26.1+ is less battle-tested** than on 1.20.1-1.21.11 (which renders via a direct Mixin). See the [Miscellaneous Tab](#miscellaneous-tab) table above.
 - **On 26.3 specifically**, two features are scaled back rather than shipped as an unverified guess, since MC 26.3 changed a lot at once (authlib 9.x→10.x, GLFW→SDL windowing, and a resource-pack composition rework):
   - **Bypass Server Pack Requirement / Strip Mod Shader Overrides don't apply.** 26.3 replaced how server packs are opened internally (`openPrimary`/`openFull` → `openMetadata`/`openResources` returning a `Stream<PackResources>`) — a real architecture change, not a signature tweak, and not something to wrap correctly on a guess without a server actually pushing a pack to test against. Every other protection feature is unaffected.
@@ -315,7 +316,7 @@ With Opsec installed, server resource pack(s) appears as a normal user-toggleabl
 
 ### Strip Mod Shader Overrides
 
-Some mods (e.g. [Meteor Client](https://github.com/MeteorDevelopment/meteor-client)) render their GUI with their own shaders loaded through Minecraft's resource manager. A forced server resource pack can overide the mod's own files to ship shaders under that mod to either blank the mod's GUI, crash the client with malformed shaders, or GPU DoS, which also fingerprints that the mod is installed.
+Some mods (e.g. [Meteor Client](https://github.com/MeteorDevelopment/meteor-client)) render their GUI with their own shaders loaded through Minecraft's resource manager. A forced server resource pack can override the mod's own files to ship shaders under that mod to either blank the mod's GUI, crash the client with malformed shaders, or GPU DoS, which also fingerprints that the mod is installed.
 
 OpSec strips shader overrides under `assets/<mod>/shaders/` from server packs for any installed mod that isn't whitelisted, so the resource manager falls back to the mod's own bundled shaders. The rest of the pack still loads, so this keeps working even when a server forces the pack to make [Bypass Server Pack Requirement](#bypass-server-pack-requirement) unusable.
 
@@ -357,9 +358,9 @@ Spoofing vanilla keybinds with **Fake Default Keybinds** enabled (Returns defaul
 
 ### Meteor Fix
 
-Legacy Meteor client a built-in key protection implementation which can lead to guaranteed detection with the key resolution probing.
+Legacy Meteor client has a built-in key protection implementation which can lead to guaranteed detection with key resolution probing.
 
-The server can use a specially crafted translation key probe with a fallback value, instead of expecting the raw key from a vanilla client, its expecting the fallback value instead. Meteor client echos the raw key back instead of the server probe's fallback value.
+The server can use a specially crafted translation key probe with a fallback value — instead of expecting the raw key a vanilla client would echo back, it expects the fallback value instead. Meteor client echoes the raw key back instead of the server probe's fallback value.
 
 When the server uses a sign exploit with fallback value on Meteor Client:
 ```
@@ -368,11 +369,11 @@ When the server uses a sign exploit with fallback value on Meteor Client:
 
 <img width="847" height="107" alt="image" src="https://github.com/user-attachments/assets/e157ae3f-6beb-4823-aca0-9c61573264e2" />
 
-What a Vanilla response would actaully be:
+What a Vanilla response would actually be:
 ```
 'key.meteor-client.open-gui' '⟦FALLBACK⟧'→'⟦FALLBACK⟧'
 ```
-OpSec's bandaid fix for Meteor is to blacklist the `AbstractSignEditScreenMixin` Mixin to disable Meteor's broken key resolution protection. Allowing OpSec's protection to take over, which already handle fallbacks correctly to match the Vanilla response.
+OpSec's bandaid fix for Meteor is to blacklist the `AbstractSignEditScreenMixin` Mixin to disable Meteor's broken key resolution protection. Allowing OpSec's protection to take over, which already handles fallbacks correctly to match the Vanilla response.
 
 <img width="901" height="107" alt="image" src="https://github.com/user-attachments/assets/506b9c73-6747-40f8-9a56-52c0353034b4" />
 
@@ -401,13 +402,13 @@ Features that don't overlap remain fully functional: alerts, chat signing, accou
 Servers can query your registered network channels to detect which mods you have installed.
 
 OpSec can conditionally block mod channels that are registered with the server to prevent detection.
-This is enabled by default, its behavior is controlled by the mod whitelist and the Client Spoofer setting.
+This is enabled by default; its behavior is controlled by the [Mod Whitelist](#mod-whitelist) and the Client Spoofer setting.
 
 ---
 
 ### Known-Pack Filtering
 
-Servers can probe your mod-injected pack identifiers that certain mods exposes to detect whether you're running a modded client or using certain mods. 
+Servers can probe your mod-injected pack identifiers that certain mods expose to detect whether you're running a modded client or using certain mods. 
 OpSec intercepts the outgoing `ServerboundSelectKnownPacks` response and strips entries belonging to non-whitelisted mods. Real vanilla and auto whitelisted packs still pass through.
 
 #### Client Spoofer Behavior
@@ -445,12 +446,12 @@ When the whitelist is active (AUTO or CUSTOM), [Client Spoofer](#client-spoofer)
 
 Based on [No Chat Reports](https://modrinth.com/mod/no-chat-reports).
 
-Cryptographic signatures by default are attached to every chat messages. Removing them makes it impossible to track and associate your chat messages with your Minecraft client, and, by extension, Microsoft account.
+Cryptographic signatures by default are attached to every chat message. Removing them makes it impossible to track and associate your chat messages with your Minecraft client, and, by extension, Microsoft account.
 
 **Modes:**
 - **OFF**: Strip all chat signatures, but prevents you from chatting in servers that enforces secure chat.
 - **Auto**: Only sign messages when the server enforces secure chat.
-- **ON**: Default Minecraft behavior, signs every messages.
+- **ON**: Default Minecraft behavior, signs every message.
 
 ---
 
@@ -482,7 +483,7 @@ Minecraft collects and sends telemetry data to Mojang, including:
 - Client configuration
 - Usage statistics
 
-OpSec blocks telemetry sending to Mojang when telemetry blocking is enabled. Does not effect gameplay.
+OpSec blocks telemetry sending to Mojang when telemetry blocking is enabled. Does not affect gameplay.
 
 ---
 
