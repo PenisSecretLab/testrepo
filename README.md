@@ -382,7 +382,7 @@ OpSec's bandaid fix for Meteor is to blacklist the `AbstractSignEditScreenMixin`
 
 For users that prefers [ExploitPreventer](https://github.com/NikOverflow/ExploitPreventer)'s core protection implementation but still need OpSec's additional features, both can be installed alongside each other. Overlapping features are automatically disabled to let EP handle them, note that you would lose OpSec features such as channels spoofing. The following OpSec features are deferred to EP:
 
-- [Brand Spoofing](#brand-spoofing)
+- [Client Spoofer](#client-spoofer)
 - [Channel Spoofing](#channel-spoofing)
 - [Known-Pack Filtering](#known-pack-filtering)
 - [Isolate Pack Cache](#isolate-pack-cache)
@@ -401,7 +401,7 @@ Features that don't overlap remain fully functional: alerts, chat signing, accou
 Servers can query your registered network channels to detect which mods you have installed.
 
 OpSec can conditionally block mod channels that are registered with the server to prevent detection.
-This is enabled by default, its behavior is controlled by the mod whitelist and 
+This is enabled by default, its behavior is controlled by the mod whitelist and the Client Spoofer setting.
 
 ---
 
